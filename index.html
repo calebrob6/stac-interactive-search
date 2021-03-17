@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="icon" href="favicon.ico">
+
+    <title>Interactive STAC search</title>
+
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css"/>
+    <link rel="stylesheet" type="text/css" href="css/leaflet-sidebar.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" type="text/css" href="css/main.css"/>
+
+    <script type="text/javascript" src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pikaday/pikaday.js"></script>
+    <script type="text/javascript" src="js/leaflet-sidebar.min.js"></script>
+
+</head>
+<body>
+    <div id="map"></div>
+ 
+    <div id="sidebar" class="leaflet-sidebar">
+
+        <div class="leaflet-sidebar-tabs">
+            <ul role="tablist">
+                <li><a href="#home" role="tab"></a></li>
+            </ul>
+        </div>
+
+        <div class="leaflet-sidebar-content">
+            <div class="leaflet-sidebar-pane" id="home">
+
+                <div>
+                    <h2>Set endpoint</h2>
+                    <p>
+                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="" style="width:100%;"/>
+                    </p>
+                    <p>(e.g. https://earth-search.aws.element84.com/v0/)</p>
+                </div>
+
+                <div>
+                    <h2>Set API key <small>(optional)</small></h2>
+                    <p>
+                        <input type="text" id="lblAPIKey" placeholder="API key..." value="" style="width:100%;"/>
+                    </p>
+                </div>
+
+                <div>
+                    <h2>Choose collection</h2>
+
+                    <select id="collection-select">
+                    </select>
+
+                </div>
+
+                <div>
+                    <h2>Choose date range</h2>
+                    <p>
+                        <label for="startPicker">Start date:</label>
+                        <input type="text" id="startPicker"/>
+                    </p>
+                    <p>
+                        <label for="endPicker">End date:</label>
+                        <input type="text" id="endPicker"/>
+                    </p>
+                </div>
+
+                <div>
+                    <h2>Choose a region</h2>
+
+                    <p>Highlight an area by right-clicking two corners on the map</p>
+
+                    <!-- <p>...or upload a GeoJSON file (only the first feature will be used) <button id="btnUpload"><i class="fa fa-upload"></button></i></p> -->
+
+                    <textarea name="textarea" rows="10" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>                    
+                </div>
+
+
+                <div>
+                    <h2>Results</h2>
+
+                    <p>Number of matched objects: <span id="lblNumMatched">-</span></p>
+
+                    <textarea name="textarea" rows="10" id="results" placeholder='API output' style="width:100%;"></textarea>
+
+                    <p>
+                        <button id="btnNext" disabled>Next >>></button>
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+
+        var gEndpoint = "";
+        var gCollection = "";
+
+        var gStartDate = "2018-01-01T08:00:00.000Z";
+        var gEndDate = "2019-01-01T08:00:00.000Z";
+
+        var gFirstClick = null;
+        var gSelection = null;
+
+
+        var query = function(geom){
+
+            var collection = $("#collection-select option:selected" ).val();
+
+            var request = {
+                "intersects": geom,
+                "datetime": gStartDate + "/" + gEndDate,
+                "collections": [collection],
+                "limit": 10
+            }
+
+            var key = $("#lblAPIKey").val();
+            console.log(key);
+            var url = gEndpoint + "search";
+            if(key != ""){
+                url = url + "?key=" + key;
+            }
+
+            $.ajax({
+                type: "POST",
+                url: url,
+                data: JSON.stringify(request),
+                success: function(data, textStatus, jqXHR){
+                    console.log(data);
+
+                    $("#lblNumMatched").html(data["context"]["matched"]);
+                    $("#results").val(JSON.stringify(data));
+                },
+                fail: function(jqXHR, textStatus, errorThrown){
+                    console.log(jqXHR);
+                    console.log(textStatus);
+                    console.log(errorThrown);
+                },
+                dataType: "json"
+            });
+        };
+
+
+        var getCollections = function(){
+
+            var url = gEndpoint + "collections";
+
+            $.ajax({
+                type: "GET",
+                url: url,
+                success: function(data, textStatus, jqXHR){
+                    $("#collection-select").html("");
+                    if("collections" in data){
+                        data = data["collections"];
+                        for(var i=0;i<data.length;i++){
+                            $("#collection-select").append('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>')
+                        }
+                    }else{
+                        for(var i=0;i<data.length;i++){
+                            $("#collection-select").append('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>')
+                        }
+                    }
+                },
+                fail: function(jqXHR, textStatus, errorThrown){
+                    console.log(jqXHR);
+                    console.log(textStatus);
+                    console.log(errorThrown);
+                },
+                dataType: "json"
+            });
+        }
+
+
+        ////////////////////////////////////////
+        // Map and UI stuff
+        ////////////////////////////////////////
+        var basemaps = {
+            "OSM": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 20,
+                maxNativeZoom: 17,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            })
+        };
+
+        var initialLayers = [
+            basemaps["OSM"]
+        ];
+
+        var gMap = L.map('map', {
+            zoomControl: false,
+            crs: L.CRS.EPSG3857,
+            center: [0,0],
+            zoom: 4,
+            keyboard: false,
+            layers: initialLayers,
+            attributionControl: false
+        });
+
+        var attributionControl = new L.Control.Attribution({position: "bottomleft"});
+        attributionControl.addTo(gMap);
+
+        var sidebar = L.control.sidebar({
+            autopan: false,
+            closeButton: false,
+            container: 'sidebar',
+            position: 'right',
+        });
+        sidebar.addTo(gMap);
+        sidebar.open("home")
+
+        var zoomControl = L.control.zoom({
+            position:'topleft'
+        })
+        zoomControl.addTo(gMap);
+
+
+        ////////////////////////////////////////
+        // Date pickers
+        ////////////////////////////////////////
+        var startPicker = new Pikaday({
+            field: document.getElementById('startPicker'),
+            format: 'DD/MM/YYYY',
+            defaultDate: new Date(2018, 0, 1),
+            setDefaultDate: true,
+            onSelect: function(){
+                gStartDate = this.getDate().toISOString();
+            }
+        });
+        var endPicker = new Pikaday({
+            field: document.getElementById('endPicker'),
+            format: 'DD/MM/YYYY',
+            defaultDate: new Date(2019, 0, 1),
+            setDefaultDate: true,
+            onSelect: function(){
+                gEndDate = this.getDate().toISOString();
+            }
+        });
+
+
+        ////////////////////////////////////////
+        // Handles updating the API endpoints and collections list
+        ////////////////////////////////////////
+        $("#lblEndpoint").keyup(function(e){
+            if(e.keyCode == 13)
+            {
+                $(this).blur();
+            }
+        });
+        $("#lblEndpoint").blur(function(e){
+            gEndpoint = $(this).val();
+            getCollections();
+        });
+
+
+        ////////////////////////////////////////
+        // Handles drawing the rectangle on the screen
+        ////////////////////////////////////////
+        gMap.addEventListener('contextmenu', function(e){
+            if(gFirstClick === null){
+                gFirstClick = e.latlng;
+            }else{
+                gFirstClick = null;
+
+                var geom = gSelection.toGeoJSON()["geometry"];
+
+                $("#geojson").val(JSON.stringify(
+                    geom, null, 2
+                ));
+
+                query(geom);
+            }
+        });
+
+        gMap.addEventListener('mousemove', function(e){
+            if(gFirstClick !== null){
+                if(gSelection === null){
+                    gSelection = L.rectangle(
+                        [gFirstClick, e.latlng],
+                        {
+                            color: "#ff7800",
+                            fillColor: "#ffffff",
+                            weight: 1
+                        }
+                    ).addTo(gMap);
+                }else{
+                    gSelection.setBounds([gFirstClick, e.latlng]);
+                }
+            }
+        });
+
+    </script>
+</body>
+
+</html>
