@@ -5,7 +5,12 @@ var queryGeneric = function(request){
         url: gSearchEndpoint,
         data: JSON.stringify(request),
         success: function(data, textStatus, jqXHR){
+
+            gNumLoaded += data["context"]["returned"];
+
             $("#lblNumMatched").html(data["context"]["matched"]);
+            $("#lblNumLoaded").html(gNumLoaded);
+
             visualizeResults(data);
             populateNext(data);
             $("#results").val(JSON.stringify(data));
@@ -107,6 +112,8 @@ var clearResults = function(){
     gFeatureGroup.clearLayers();
     $("#results").val("");
     $("#lblNumMatched").html("-");
+    $("#lblNumLoaded").html("-")
+    gNumLoaded = 0;
 }
 
 var featurePopup = function(layer){

@@ -78,16 +78,25 @@
 
                     <!-- <p>...or upload a GeoJSON file (only the first feature will be used) <button id="btnUpload"><i class="fa fa-upload"></button></i></p> -->
 
-                    <textarea name="textarea" rows="2" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>                    
+                    <textarea name="textarea" rows="2" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>
                 </div>
 
+                <div>
+                    <h2>Choose the number of results to return</h2>
+
+                    <p>
+                        <label for="txtNumResults">Number of results per query:</label>
+                        <input type="text" id="txtNumResults" value="5" maxlength="4" size="4"/>
+                    </p>
+                </div>
 
                 <div>
                     <h2>Results</h2>
 
+                    <p>Number of loaded objects: <span id="lblNumLoaded">-</span></p>
                     <p>Number of matched objects: <span id="lblNumMatched">-</span></p>
 
-                    <textarea name="textarea" rows="10" id="results" placeholder='API output' style="width:100%;"></textarea>
+                    <textarea name="textarea" rows="2" id="results" placeholder='API output' style="width:100%;"></textarea>
 
                     <p>
                         <button id="btnNext" disabled>Next >>></button>
@@ -115,7 +124,8 @@
         var gMap = null;
         var gFeatureGroup = null;
 
-        var gLimit = 2; // The number of results that are returned per search
+        var gLimit = 5; // The number of results that are returned per search
+        var gNumLoaded = 0;
 
         ////////////////////////////////////////
         // Map and UI stuff
@@ -217,6 +227,20 @@
         });
 
         ////////////////////////////////////////
+        // Handles the number of results limit text box
+        ////////////////////////////////////////
+        $("#txtNumResults").blur(function(){
+            let val = $(this).val();
+            val = parseInt(val);
+            if(isNaN(val)){
+                $(this).val("5");
+                gLimit = 5;
+            }else{
+                gLimit = val;
+            }
+        });
+
+        ////////////////////////////////////////
         // Handles drawing the rectangle on the screen
         ////////////////////////////////////////
         gMap.addEventListener('contextmenu', function(e){
@@ -226,7 +250,7 @@
                 gFirstClick = null;
 
                 clearResults();
-                
+
                 var geom = gSelection.toGeoJSON()["geometry"];
 
                 $("#geojson").val(JSON.stringify(
