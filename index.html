@@ -38,7 +38,7 @@
                 <div>
                     <h2>Set endpoint</h2>
                     <p>
-                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="" style="width:90%;"/> <span id="lblEndpointStatus" class="red"><i class="fas fa-times"></i></span>
+                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="https://planetarycomputer.microsoft.com/api/stac/v1" style="width:90%;"/> <span id="lblEndpointStatus" class="red"><i class="fas fa-times"></i></span>
                     </p>
                     <p>(e.g. https://planetarycomputer.microsoft.com/api/stac/v1/)</p>
                     <!-- <p>(e.g. https://earth-search.aws.element84.com/v0/)</p> -->
@@ -102,6 +102,7 @@
     <script type="text/javascript">
 
         var gEndpoint = "";
+        var gSearchEndpoint = "";
         var gCollection = "";
 
         var gStartDate = "2018-01-01T08:00:00.000Z";
@@ -110,33 +111,20 @@
         var gFirstClick = null;
         var gSelection = null;
 
+        var gNextRequest = null;
 
-        var query = function(geom){
-
-            var collection = $("#collection-select option:selected").val();
-
-            var request = {
-                "intersects": geom,
-                "datetime": gStartDate + "/" + gEndDate,
-                "collections": [collection],
-                "limit": 10
-            }
-
-            // var key = $("#lblAPIKey").val();
-            // console.log(key);
-            var url = gEndpoint + "search";
-            // if(key != ""){
-            //     url = url + "?key=" + key;
-            // }
+        var queryGeneric = function(request){
 
             $.ajax({
                 type: "POST",
-                url: url,
+                url: gSearchEndpoint,
                 data: JSON.stringify(request),
                 success: function(data, textStatus, jqXHR){
                     console.log(data);
 
                     $("#lblNumMatched").html(data["context"]["matched"]);
+                    visualizeResults(data);
+                    populateNext(data);
                     $("#results").val(JSON.stringify(data));
                 },
                 fail: function(jqXHR, textStatus, errorThrown){
@@ -146,6 +134,20 @@
                 },
                 dataType: "json"
             });
+        }
+
+        var queryGeom = function(geom){
+
+            var collection = $("#collection-select option:selected").val();
+
+            var request = {
+                "intersects": geom,
+                "datetime": gStartDate + "/" + gEndDate,
+                "collections": [collection],
+                "limit": 50
+            }
+
+            queryGeneric(request)
         };
 
 
@@ -246,7 +248,7 @@
 
 
         ////////////////////////////////////////
-        // Handles updating the API endpoints and collections list
+        // Handles getting the collections list when a user types in the first text box
         ////////////////////////////////////////
         $("#lblEndpoint").on("input", async function(e){
             let url = $(this).val();
@@ -254,12 +256,28 @@
             if(validUrl){
                 changeLblCollectionStatus(true);
                 gEndpoint = $(this).val();
+                if(!gEndpoint.endsWith("/")){
+                    gEndpoint += "/";
+                }
+                gSearchEndpoint = gEndpoint + "search"
+
                 getCollections();
             }else{
                 changeLblCollectionStatus(false);
             }
         });
 
+        ////////////////////////////////////////
+        // Handles the "Next" button click
+        ////////////////////////////////////////
+        $("#btnNext").click(function(){
+            if(gNextRequest !== null){
+                queryGeneric(gNextRequest);
+                gNextRequest = null;
+            }else{
+                console.error("This shouldn't be able to happen");
+            }
+        });
 
         ////////////////////////////////////////
         // Handles drawing the rectangle on the screen
@@ -276,7 +294,7 @@
                     geom, null, 2
                 ));
 
-                query(geom);
+                queryGeom(geom);
             }
         });
 

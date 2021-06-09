@@ -42,3 +42,31 @@ var isSTACCollectionUrl = async function(url){
         return false;
     }
 }
+
+var visualizeResults = function(data){
+    // Called after a successful API search request
+}
+
+
+var populateNext = function(data){
+    // Called after a successful API search request
+    if(data["links"].length > 0){
+        let links = data["links"];
+        let foundNext = false;
+        for(let i=0; i<links.length; i++){
+            if(links[i]["rel"] === "next"){
+                let request = links[i]["body"];
+                $("#btnNext").prop( "disabled", false);
+                gNextRequest = request;
+                foundNext = true;
+            }
+        }
+        if(!foundNext){
+            console.debug("Reached the end of the data")
+            $("#btnNext").prop( "disabled", true);
+        }
+    }else{
+        console.debug("Reached the end of the data")
+        $("#btnNext").prop( "disabled", true);
+    }
+};
