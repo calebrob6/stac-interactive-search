@@ -33,3 +33,7 @@ body {
 .green{
     color: darkgreen;
 }
+
+.stacEndpoint{
+    font-size: smaller;
+}

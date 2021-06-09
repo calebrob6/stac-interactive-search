@@ -117,13 +117,11 @@ var clearResults = function(){
 }
 
 var featurePopup = function(layer){
-    console.debug(layer);
     let feature = layer.feature;
     let content = document.createElement("div")
     content.appendChild($("<b>" + feature.id + "</b>")[0]);
     let list = document.createElement("ul");
     for(k in feature.assets){
-        console.debug(feature.assets[k]);
         let href = feature.assets[k]["href"];
         let element = $("<li><a href='"+href+"' target='_blank'>"+k+"</a></li>")[0];
         list.appendChild(element);
@@ -161,7 +159,7 @@ var populateNext = function(data){
         for(let i=0; i<links.length; i++){
             if(links[i]["rel"] === "next"){
                 let request = links[i]["body"];
-                $("#btnNext").prop( "disabled", false);
+                $("#btnNext").prop("disabled", false);
                 gNextRequest = request;
                 foundNext = true;
             }
@@ -175,3 +173,19 @@ var populateNext = function(data){
         $("#btnNext").prop( "disabled", true);
     }
 };
+
+var processNewEndpoint = async function(url){
+    let validUrl = await isSTACCollectionUrl(url);
+    if(validUrl){
+        changeLblCollectionStatus(true);
+        gEndpoint = url;
+        if(!gEndpoint.endsWith("/")){
+            gEndpoint += "/";
+        }
+        gSearchEndpoint = gEndpoint + "search"
+
+        getCollections();
+    }else{
+        changeLblCollectionStatus(false);
+    }
+}

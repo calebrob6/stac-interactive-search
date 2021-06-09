@@ -19,6 +19,7 @@
     <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pikaday/pikaday.js"></script>
     <script type="text/javascript" src="js/leaflet-sidebar.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/geotiff"></script>
 
 </head>
 <body>
@@ -38,10 +39,15 @@
                 <div>
                     <h2>Set endpoint</h2>
                     <p>
-                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="https://planetarycomputer.microsoft.com/api/stac/v1" style="width:90%;"/> <span id="lblEndpointStatus" class="red"><i class="fas fa-times"></i></span>
+                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="" style="width:90%;"/> <span id="lblEndpointStatus" class="red"><i class="fas fa-times"></i></span>
                     </p>
-                    <p>(e.g. https://planetarycomputer.microsoft.com/api/stac/v1/)</p>
-                    <!-- <p>(e.g. https://earth-search.aws.element84.com/v0/)</p> -->
+                    <p>
+                        <ul style="list-style: none; padding-left: 1em;">
+                            <li><a href="#" class="stacEndpoint" data-href="https://planetarycomputer.microsoft.com/api/stac/v1/">https://planetarycomputer.microsoft.com/api/stac/v1/</a></li>
+                            <li><a href="#" class="stacEndpoint" data-href="https://earth-search.aws.element84.com/v0/">https://earth-search.aws.element84.com/v0/</a></li>
+                            <li><a href="#" class="stacEndpoint" data-href="https://eod-catalog-svc-prod.astraea.earth/">https://eod-catalog-svc-prod.astraea.earth/</a></li>
+                        </ul>
+                    </p>
                 </div>
 
                 <!-- <div>
@@ -96,7 +102,7 @@
                     <p>Number of loaded objects: <span id="lblNumLoaded">-</span></p>
                     <p>Number of matched objects: <span id="lblNumMatched">-</span></p>
 
-                    <textarea name="textarea" rows="2" id="results" placeholder='API output' style="width:100%;"></textarea>
+                    <textarea name="textarea" rows="3" id="results" placeholder='API output' style="width:100%;"></textarea>
 
                     <p>
                         <button id="btnNext" disabled>Next >>></button>
@@ -197,21 +203,9 @@
         ////////////////////////////////////////
         // Handles getting the collections list when a user types in the first text box
         ////////////////////////////////////////
-        $("#lblEndpoint").on("input", async function(e){
+        $("#lblEndpoint").on("input", function(e){
             let url = $(this).val();
-            let validUrl = await isSTACCollectionUrl(url);
-            if(validUrl){
-                changeLblCollectionStatus(true);
-                gEndpoint = $(this).val();
-                if(!gEndpoint.endsWith("/")){
-                    gEndpoint += "/";
-                }
-                gSearchEndpoint = gEndpoint + "search"
-
-                getCollections();
-            }else{
-                changeLblCollectionStatus(false);
-            }
+            processNewEndpoint(url);
         });
 
         ////////////////////////////////////////
@@ -219,6 +213,7 @@
         ////////////////////////////////////////
         $("#btnNext").click(function(){
             if(gNextRequest !== null){
+                gNextRequest["limit"] = gLimit;
                 queryGeneric(gNextRequest);
                 gNextRequest = null;
             }else{
@@ -238,6 +233,15 @@
             }else{
                 gLimit = val;
             }
+        });
+
+        ////////////////////////////////////////
+        // Handles preset STAC endpoint links
+        ////////////////////////////////////////
+        $(".stacEndpoint").click(function(){
+            let url = $(this).data("href");
+            $("#lblEndpoint").val(url);
+            processNewEndpoint(url);
         });
 
         ////////////////////////////////////////
@@ -269,7 +273,7 @@
                         {
                             color: "#ff7800",
                             fillColor: "#ffffff",
-                            weight: 1
+                            weight: 4
                         }
                     ).addTo(gMap);
                 }else{
