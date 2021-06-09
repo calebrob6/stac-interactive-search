@@ -11,7 +11,7 @@
     <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pikaday/css/pikaday.css"/>
     <link rel="stylesheet" type="text/css" href="css/leaflet-sidebar.min.css"/>
-    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
     <link rel="stylesheet" type="text/css" href="css/main.css"/>
 
     <script type="text/javascript" src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -38,17 +38,18 @@
                 <div>
                     <h2>Set endpoint</h2>
                     <p>
-                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="" style="width:100%;"/>
+                        <input type="text" id="lblEndpoint" placeholder="URL of STAC API" value="" style="width:90%;"/> <span id="lblEndpointStatus" class="red"><i class="fas fa-times"></i></span>
                     </p>
-                    <p>(e.g. https://earth-search.aws.element84.com/v0/)</p>
+                    <p>(e.g. https://planetarycomputer.microsoft.com/api/stac/v1/)</p>
+                    <!-- <p>(e.g. https://earth-search.aws.element84.com/v0/)</p> -->
                 </div>
 
-                <div>
+                <!-- <div>
                     <h2>Set API key <small>(optional)</small></h2>
                     <p>
                         <input type="text" id="lblAPIKey" placeholder="API key..." value="" style="width:100%;"/>
                     </p>
-                </div>
+                </div> -->
 
                 <div>
                     <h2>Choose collection</h2>
@@ -77,7 +78,7 @@
 
                     <!-- <p>...or upload a GeoJSON file (only the first feature will be used) <button id="btnUpload"><i class="fa fa-upload"></button></i></p> -->
 
-                    <textarea name="textarea" rows="10" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>                    
+                    <textarea name="textarea" rows="5" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>                    
                 </div>
 
 
@@ -97,7 +98,7 @@
         </div>
     </div>
 
-
+    <script type="text/javascript" src="js/main.js"></script>
     <script type="text/javascript">
 
         var gEndpoint = "";
@@ -112,7 +113,7 @@
 
         var query = function(geom){
 
-            var collection = $("#collection-select option:selected" ).val();
+            var collection = $("#collection-select option:selected").val();
 
             var request = {
                 "intersects": geom,
@@ -121,12 +122,12 @@
                 "limit": 10
             }
 
-            var key = $("#lblAPIKey").val();
-            console.log(key);
+            // var key = $("#lblAPIKey").val();
+            // console.log(key);
             var url = gEndpoint + "search";
-            if(key != ""){
-                url = url + "?key=" + key;
-            }
+            // if(key != ""){
+            //     url = url + "?key=" + key;
+            // }
 
             $.ajax({
                 type: "POST",
@@ -247,15 +248,16 @@
         ////////////////////////////////////////
         // Handles updating the API endpoints and collections list
         ////////////////////////////////////////
-        $("#lblEndpoint").keyup(function(e){
-            if(e.keyCode == 13)
-            {
-                $(this).blur();
+        $("#lblEndpoint").on("input", async function(e){
+            let url = $(this).val();
+            let validUrl = await isSTACCollectionUrl(url);
+            if(validUrl){
+                changeLblCollectionStatus(true);
+                gEndpoint = $(this).val();
+                getCollections();
+            }else{
+                changeLblCollectionStatus(false);
             }
-        });
-        $("#lblEndpoint").blur(function(e){
-            gEndpoint = $(this).val();
-            getCollections();
         });
 
 

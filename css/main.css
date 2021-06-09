@@ -26,3 +26,10 @@ body {
 .leaflet-sidebar-tabs{
     display: none;
 }
+
+.red{
+    color: red;
+}
+.green{
+    color: darkgreen;
+}
