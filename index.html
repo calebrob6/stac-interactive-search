@@ -78,7 +78,7 @@
 
                     <!-- <p>...or upload a GeoJSON file (only the first feature will be used) <button id="btnUpload"><i class="fa fa-upload"></button></i></p> -->
 
-                    <textarea name="textarea" rows="5" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>                    
+                    <textarea name="textarea" rows="2" id="geojson" placeholder='{&#10;&#x09;"type": "Polygon",&#10;&#x09;"coordinates": [&#10;&#x09;&#x09;[&#10;&#x09;&#x09;&#x09;[0, -20],&#10;&#x09;&#x09;&#x09;[20, -20],&#10;&#x09;&#x09;&#x09;[20, 0],&#10;&#x09;&#x09;&#x09;[0, 0],&#10;&#x09;&#x09;&#x09;[0, -20]&#10;&#x09;&#x09;]&#10;&#x09;]&#10;}' style="width:100%;"></textarea>                    
                 </div>
 
 
@@ -112,74 +112,10 @@
         var gSelection = null;
 
         var gNextRequest = null;
+        var gMap = null;
+        var gFeatureGroup = null;
 
-        var queryGeneric = function(request){
-
-            $.ajax({
-                type: "POST",
-                url: gSearchEndpoint,
-                data: JSON.stringify(request),
-                success: function(data, textStatus, jqXHR){
-                    console.log(data);
-
-                    $("#lblNumMatched").html(data["context"]["matched"]);
-                    visualizeResults(data);
-                    populateNext(data);
-                    $("#results").val(JSON.stringify(data));
-                },
-                fail: function(jqXHR, textStatus, errorThrown){
-                    console.log(jqXHR);
-                    console.log(textStatus);
-                    console.log(errorThrown);
-                },
-                dataType: "json"
-            });
-        }
-
-        var queryGeom = function(geom){
-
-            var collection = $("#collection-select option:selected").val();
-
-            var request = {
-                "intersects": geom,
-                "datetime": gStartDate + "/" + gEndDate,
-                "collections": [collection],
-                "limit": 50
-            }
-
-            queryGeneric(request)
-        };
-
-
-        var getCollections = function(){
-
-            var url = gEndpoint + "collections";
-
-            $.ajax({
-                type: "GET",
-                url: url,
-                success: function(data, textStatus, jqXHR){
-                    $("#collection-select").html("");
-                    if("collections" in data){
-                        data = data["collections"];
-                        for(var i=0;i<data.length;i++){
-                            $("#collection-select").append('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>')
-                        }
-                    }else{
-                        for(var i=0;i<data.length;i++){
-                            $("#collection-select").append('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>')
-                        }
-                    }
-                },
-                fail: function(jqXHR, textStatus, errorThrown){
-                    console.log(jqXHR);
-                    console.log(textStatus);
-                    console.log(errorThrown);
-                },
-                dataType: "json"
-            });
-        }
-
+        var gLimit = 2; // The number of results that are returned per search
 
         ////////////////////////////////////////
         // Map and UI stuff
@@ -196,15 +132,16 @@
             basemaps["OSM"]
         ];
 
-        var gMap = L.map('map', {
+        gMap = L.map('map', {
             zoomControl: false,
             crs: L.CRS.EPSG3857,
             center: [0,0],
-            zoom: 4,
+            zoom: 3,
             keyboard: false,
             layers: initialLayers,
             attributionControl: false
         });
+        gFeatureGroup = L.featureGroup().addTo(gMap);
 
         var attributionControl = new L.Control.Attribution({position: "bottomleft"});
         attributionControl.addTo(gMap);
@@ -288,6 +225,8 @@
             }else{
                 gFirstClick = null;
 
+                clearResults();
+                
                 var geom = gSelection.toGeoJSON()["geometry"];
 
                 $("#geojson").val(JSON.stringify(
