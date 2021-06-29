@@ -37,3 +37,28 @@ body {
 .stacEndpoint{
     font-size: smaller;
 }
+
+#resultsList {
+    list-style: none;
+    padding-left: 0.5em;
+}
+
+#resultsList li{
+    padding: 4px;
+    margin-bottom: 0.5em;
+}
+#resultsList li::after {
+    display:block;
+    content:"";
+    clear:both;
+  }
+
+#resultsList .asset-thumbnail{
+    float:left;
+    width:50%;
+}
+#resultsList .asset-info{
+    float:left;
+    width:45%;
+    margin-left: 0.5em;
+}

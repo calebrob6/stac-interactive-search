@@ -113,22 +113,53 @@ var clearResults = function(){
     $("#results").val("");
     $("#lblNumMatched").html("-");
     $("#lblNumLoaded").html("-")
+    $("#resultsList").html("");
     gNumLoaded = 0;
 }
 
 var featurePopup = function(layer){
+    //called on a feature click
     let feature = layer.feature;
     let content = document.createElement("div")
     content.appendChild($("<b>" + feature.id + "</b>")[0]);
     let list = document.createElement("ul");
+    let numAssets = Object.keys(feature.assets).length;
+    console.debug(numAssets);
     for(k in feature.assets){
-        let href = feature.assets[k]["href"];
-        let element = $("<li><a href='"+href+"' target='_blank'>"+k+"</a></li>")[0];
-        list.appendChild(element);
+        let hrefResult = parseURL(feature.assets[k]["href"]);
+        let listElement = document.createElement("li");
+        let linkElement = document.createElement("a");
+        linkElement.target = "_blank";
+        linkElement.innerHTML = k;
+        listElement.appendChild(linkElement)
+        hrefResult.then(function(result){
+            linkElement.href = result;
+        });
+        list.appendChild(listElement);
     }
     content.appendChild(list);
     return content;
 };
+
+var signURL = async function(url){
+    // TODO: try catch for cases where we are rate limited
+    let result = await $.ajax({
+        type: "GET",
+        url: "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=" + url,
+        dataType: "json"
+    });
+    return result["href"];
+}
+
+var parseURL = async function(url){
+
+    if (gEndpoint.indexOf("planetarycomputer") != -1){
+        let result = await signURL(url);
+        return result;
+    }else{
+        return url;
+    }
+}
 
 var visualizeResults = function(data){
     // Called after a successful API search request
@@ -136,6 +167,7 @@ var visualizeResults = function(data){
     for(let i=0; i<features.length; i++){
 
         let geoJSON = features[i];
+        //console.debug(geoJSON);
         let feature = L.geoJSON(geoJSON,{
             style: {
                 "color": "#4573ff",
@@ -148,6 +180,41 @@ var visualizeResults = function(data){
         feature.bindPopup(featurePopup, {
             maxWidth: 700
         });
+
+
+        let content = document.createElement("li");
+        let assetImage = document.createElement("img");
+        if("thumbnail" in geoJSON.assets){ // I assume that these will always be PNG or JPEG
+            let hrefResult = parseURL(geoJSON.assets.thumbnail["href"]);
+            hrefResult.then(function(result){
+                assetImage.src = result;
+            });
+        }else if("preview" in geoJSON.assets){ // I assume that these will always be TIFF
+            // TODO
+        }else{
+            // This happens when there is no preview image
+        }
+        assetImage.classList.add("asset-thumbnail");
+
+        let assetInfo = document.createElement("div");
+        assetInfo.classList.add("asset-info");
+
+        let assetName = document.createElement("div");
+        assetName.innerHTML = geoJSON.id
+        assetInfo.appendChild(assetName);
+
+        let assetDate = document.createElement("div");
+        assetDate.innerHTML = geoJSON.properties.datetime;
+        assetInfo.appendChild(assetDate);
+
+        content.appendChild(assetImage);
+        content.appendChild(assetInfo);
+        document.getElementById("resultsList").appendChild(content);
+
+        $(content).click(function(){
+            feature.openPopup();
+        })
+
     }
 };
 

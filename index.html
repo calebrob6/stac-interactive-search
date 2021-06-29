@@ -66,6 +66,15 @@
                 </div>
 
                 <div>
+                    <h2>Choose the number of results to return</h2>
+
+                    <p>
+                        <label for="txtNumResults">Number of results per query:</label>
+                        <input type="text" id="txtNumResults" value="5" maxlength="4" size="4"/>
+                    </p>
+                </div>
+
+                <div>
                     <h2>Choose date range</h2>
                     <p>
                         <label for="startPicker">Start date:</label>
@@ -88,25 +97,23 @@
                 </div>
 
                 <div>
-                    <h2>Choose the number of results to return</h2>
-
-                    <p>
-                        <label for="txtNumResults">Number of results per query:</label>
-                        <input type="text" id="txtNumResults" value="5" maxlength="4" size="4"/>
-                    </p>
-                </div>
-
-                <div>
                     <h2>Results</h2>
 
                     <p>Number of loaded objects: <span id="lblNumLoaded">-</span></p>
                     <p>Number of matched objects: <span id="lblNumMatched">-</span></p>
 
+                    <p>
+                        <button id="btnNext" disabled>Load Next >>></button>
+                    </p>
+
                     <textarea name="textarea" rows="3" id="results" placeholder='API output' style="width:100%;"></textarea>
 
-                    <p>
-                        <button id="btnNext" disabled>Next >>></button>
-                    </p>
+                    <div>
+                        <h3>List of assets</h3>
+                        <ul id="resultsList"></ul>
+                    </div>
+
+
                 </div>
 
             </div>
