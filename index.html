@@ -44,6 +44,7 @@
                     <p>
                         <ul style="list-style: none; padding-left: 1em;">
                             <li><a href="#" class="stacEndpoint" data-href="https://planetarycomputer.microsoft.com/api/stac/v1/">https://planetarycomputer.microsoft.com/api/stac/v1/</a></li>
+                            <li><a href="#" class="stacEndpoint" data-href="https://planetarycomputer-staging.microsoft.com/api/stac/v1/">https://planetarycomputer-staging.microsoft.com/api/stac/v1/</a></li>
                             <li><a href="#" class="stacEndpoint" data-href="https://earth-search.aws.element84.com/v0/">https://earth-search.aws.element84.com/v0/</a></li>
                             <li><a href="#" class="stacEndpoint" data-href="https://eod-catalog-svc-prod.astraea.earth/">https://eod-catalog-svc-prod.astraea.earth/</a></li>
                         </ul>
@@ -62,6 +63,9 @@
 
                     <select id="collection-select">
                     </select>
+
+                    <p>Description: <span id="lblCollectionDescription"></span></p>
+                    <p>Temporal range: <span id="lblTemporalRange"></span></p>
 
                 </div>
 
@@ -125,7 +129,7 @@
 
         var gEndpoint = "";
         var gSearchEndpoint = "";
-        var gCollection = "";
+        var gCollections = Object();
 
         var gStartDate = "2018-01-01T08:00:00.000Z";
         var gEndDate = "2019-01-01T08:00:00.000Z";
@@ -136,6 +140,7 @@
         var gNextRequest = null;
         var gMap = null;
         var gFeatureGroup = null;
+        var gTileLayers = null;
 
         var gLimit = 5; // The number of results that are returned per search
         var gNumLoaded = 0;
@@ -165,6 +170,7 @@
             attributionControl: false
         });
         gFeatureGroup = L.featureGroup().addTo(gMap);
+        gTileLayers = L.layerGroup().addTo(gMap);
 
         var attributionControl = new L.Control.Attribution({position: "bottomleft"});
         attributionControl.addTo(gMap);

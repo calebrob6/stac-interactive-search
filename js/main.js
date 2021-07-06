@@ -6,10 +6,15 @@ var queryGeneric = function(request){
         data: JSON.stringify(request),
         success: function(data, textStatus, jqXHR){
 
-            gNumLoaded += data["context"]["returned"];
 
-            $("#lblNumMatched").html(data["context"]["matched"]);
+            gNumLoaded += data["features"].length;
             $("#lblNumLoaded").html(gNumLoaded);
+            if ("context" in data){
+                $("#lblNumMatched").html(data["context"]["matched"]);
+            } else{
+                $("#lblNumMatched").html("Unkown -- context extension not enabled");
+            }
+
 
             visualizeResults(data);
             populateNext(data);
@@ -25,16 +30,25 @@ var queryGeneric = function(request){
 };
 
 var queryGeom = function(geom){
-
+    // TODO: We know which collection is selected so this can be replaced
     let collection = $("#collection-select option:selected").val();
-    let request = {
-        "intersects": geom,
-        "datetime": gStartDate + "/" + gEndDate,
-        "collections": [collection],
-        "limit": gLimit
+    if(collection !== "---"){
+        let request = {
+            "intersects": geom,
+            "datetime": gStartDate + "/" + gEndDate,
+            "collections": [collection],
+            "limit": gLimit
+        }
+        queryGeneric(request)
+    }else{
+        alert("Select a collection");
     }
-    queryGeneric(request)
 };
+
+
+var collectionSelectHandler = function(e){
+    console.debug(this.value);
+}
 
 var getCollections = function(){
 
@@ -44,16 +58,47 @@ var getCollections = function(){
         type: "GET",
         url: url,
         success: function(data, textStatus, jqXHR){
-            $("#collection-select").html("");
+
             if("collections" in data){
+                $("#collection-select").off("change");
+                $("#collection-select").html("");
+
                 data = data["collections"];
+
+                let element = $('<option value="---">---</option>');
+                $("#collection-select").append(element);
+
                 for(var i=0;i<data.length;i++){
-                    $("#collection-select").append('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>')
+                    let element = $('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>');
+                    $("#collection-select").append(element);
+                    gCollections[data[i]["id"]] = data[i];
                 }
+
+                $("#collection-select").on("change", function(){
+                    if(this.value !== "---"){
+                        let data = gCollections[this.value];
+
+                        let description = null;
+                        if("msft:short_description" in data){
+                            description = data["msft:short_description"];
+                        }else{
+                            description = data["description"];
+                        }
+                        let timeStart = data["extent"]["temporal"]["interval"][0][0];
+                        let timeEnd = data["extent"]["temporal"]["interval"][0][1];
+
+                        timeStart = timeStart === null ? "undefined" : timeStart.substring(0,10);
+                        timeEnd = timeEnd === null ? "undefined" : timeEnd.substring(0,10);
+
+                        $("#lblCollectionDescription").html(description);
+                        $("#lblTemporalRange").html(timeStart + " -- " + timeEnd);
+                    }else{
+                        $("#lblCollectionDescription").html("");
+                        $("#lblTemporalRange").html("");
+                    }
+                })
             }else{
-                for(var i=0;i<data.length;i++){
-                    $("#collection-select").append('<option value="'+data[i]["id"]+'">'+data[i]["title"]+'</option>')
-                }
+                alert("INVALID RESPONSE");
             }
         },
         fail: function(jqXHR, textStatus, errorThrown){
@@ -110,12 +155,50 @@ var isSTACCollectionUrl = async function(url){
 
 var clearResults = function(){
     gFeatureGroup.clearLayers();
+    gTileLayers.clearLayers();
     $("#results").val("");
     $("#lblNumMatched").html("-");
     $("#lblNumLoaded").html("-")
     $("#resultsList").html("");
     gNumLoaded = 0;
+};
+
+
+var renderTileJSON = function(url){
+    $.ajax({
+        type: "GET",
+        url: url,
+        dataType: "json",
+        success: function (tileJson) {
+
+            clearResults();
+            if(gSelection !== null){
+                gSelection.remove();
+                gSelection = null;
+            }
+
+            console.debug(tileJson)
+
+            let minx = tileJson.bounds[0];
+            let miny = tileJson.bounds[1];
+            let maxx = tileJson.bounds[2];
+            let maxy = tileJson.bounds[3];
+            let bounds = [[miny, minx],[maxy, maxx]]
+
+            var tiles = tileJson.tiles[0];
+
+            var tileLayer = L.tileLayer(tiles, {
+                minZoom: tileJson.minzoon,
+                maxZoom: tileJson.maxzoom,
+                bounds: bounds,
+            }).addTo(gMap);
+
+            gTileLayers.addLayer(tileLayer)
+            gMap.fitBounds(bounds);
+        }
+    });
 }
+
 
 var featurePopup = function(layer){
     //called on a feature click
@@ -123,18 +206,20 @@ var featurePopup = function(layer){
     let content = document.createElement("div")
     content.appendChild($("<b>" + feature.id + "</b>")[0]);
     let list = document.createElement("ul");
-    let numAssets = Object.keys(feature.assets).length;
-    console.debug(numAssets);
     for(k in feature.assets){
-        let hrefResult = parseURL(feature.assets[k]["href"]);
+        let url = feature.assets[k]["href"];
         let listElement = document.createElement("li");
         let linkElement = document.createElement("a");
-        linkElement.target = "_blank";
+        linkElement.href = "#"
         linkElement.innerHTML = k;
+        $(linkElement).click(function(){
+            let hrefResult = signURL(url);
+            hrefResult.then(function(result){
+                window.open(result, '_blank');
+            });
+        })
         listElement.appendChild(linkElement)
-        hrefResult.then(function(result){
-            linkElement.href = result;
-        });
+
         list.appendChild(listElement);
     }
     content.appendChild(list);
@@ -142,17 +227,19 @@ var featurePopup = function(layer){
 };
 
 var signURL = async function(url){
-    // TODO: try catch for cases where we are rate limited
-    let result = await $.ajax({
-        type: "GET",
-        url: "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=" + url,
-        dataType: "json"
-    });
-    return result["href"];
+    try{
+        let result = await $.ajax({
+            type: "GET",
+            url: "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=" + url,
+            dataType: "json"
+        });
+        return result["href"];
+    }catch{ // the signing failed, so use the URL we were trying to sign
+        return url;
+    }
 }
 
 var parseURL = async function(url){
-
     if (gEndpoint.indexOf("planetarycomputer") != -1){
         let result = await signURL(url);
         return result;
@@ -189,8 +276,8 @@ var visualizeResults = function(data){
             hrefResult.then(function(result){
                 assetImage.src = result;
             });
-        }else if("preview" in geoJSON.assets){ // I assume that these will always be TIFF
-            // TODO
+        }else if("rendered_preview" in geoJSON.assets){ // Special case for the planetary computer
+            assetImage.src = geoJSON.assets.rendered_preview["href"];
         }else{
             // This happens when there is no preview image
         }
@@ -206,6 +293,17 @@ var visualizeResults = function(data){
         let assetDate = document.createElement("div");
         assetDate.innerHTML = geoJSON.properties.datetime;
         assetInfo.appendChild(assetDate);
+
+        if("tilejson" in geoJSON.assets){
+            let assetRender = $("<button data-url='"+geoJSON.assets.tilejson["href"]+"'>Render</button>");
+            assetRender.on("click", function(){
+
+                let url = $(this).data("url");
+                renderTileJSON(url, feature);
+                return false;
+            })
+            assetInfo.appendChild(assetRender[0]);
+        }
 
         content.appendChild(assetImage);
         content.appendChild(assetInfo);
@@ -250,6 +348,9 @@ var processNewEndpoint = async function(url){
             gEndpoint += "/";
         }
         gSearchEndpoint = gEndpoint + "search"
+
+        gCollections = Object(); // clear out the existing collections objects
+        clearResults(); // clear out the existing map results
 
         getCollections();
     }else{
